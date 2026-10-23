@@ -1,16 +1,51 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../models/app_settings.dart';
+import '../models/calendar_reminder.dart';
+import '../models/technical_indicator_data.dart';
 import '../models/trade_record.dart';
+import '../services/company_repository.dart';
+import '../services/indicator_calculator_service.dart';
 import '../services/storage_service.dart';
+import '../theme/app_themes.dart';
 
-class SettingsNotifier extends Notifier<AppSettings> {
-  @override
-  AppSettings build() => const AppSettings();
+// --- Theme State & Notifier ---
+class ThemeNotifier extends StateNotifier<int> {
+  ThemeNotifier(this._ref) : super(10);
+
+  final Ref _ref;
+
+  void initialize(int index) {
+    if (index >= 0 && index < AppThemes.allThemes.length) state = index;
+  }
+
+  void setTheme(int index) {
+    if (index >= 0 && index < AppThemes.allThemes.length) {
+      state = index;
+      final settings = _ref.read(settingsProvider);
+      _ref
+          .read(settingsProvider.notifier)
+          .updateSettings(settings.copyWith(themeIndex: index));
+    }
+  }
+}
+
+final themeIndexProvider = StateNotifierProvider<ThemeNotifier, int>((ref) {
+  return ThemeNotifier(ref);
+});
+
+final currentThemeProvider = Provider<ThemeConfig>((ref) {
+  final index = ref.watch(themeIndexProvider);
+  return AppThemes.getTheme(index);
+});
+
+// --- App Settings Notifier ---
+class SettingsNotifier extends StateNotifier<AppSettings> {
+  SettingsNotifier() : super(const AppSettings());
 
   Future<void> load() async {
-    final settings = await StorageService.loadSettings();
-    state = settings;
+    state = await StorageService.loadSettings();
   }
 
   Future<void> updateSettings(AppSettings newSettings) async {
@@ -18,12 +53,30 @@ class SettingsNotifier extends Notifier<AppSettings> {
     await StorageService.saveSettings(newSettings);
   }
 
+  Future<void> setDisplayMode(DataDisplayMode mode) async {
+    final updated = state.copyWith(displayMode: mode);
+    await updateSettings(updated);
+  }
+
+  Future<void> setPin(String pinHash) async {
+    final updated = state.copyWith(
+      pinHash: pinHash,
+      isPinSecurityEnabled: pinHash.isNotEmpty,
+    );
+    await updateSettings(updated);
+  }
+
+  Future<void> toggleBiometrics(bool enabled) async {
+    final updated = state.copyWith(isBiometricEnabled: enabled);
+    await updateSettings(updated);
+  }
+
   Future<void> completeOnboarding() async {
     final updated = state.copyWith(hasCompletedOnboarding: true);
     await updateSettings(updated);
   }
 
-  Future<void> updateNotificationPreferences({
+  Future<void> updateNotificationPref({
     bool? priceAlerts,
     bool? macdSignals,
     bool? sellDateReminders,
@@ -39,117 +92,248 @@ class SettingsNotifier extends Notifier<AppSettings> {
     await updateSettings(updated);
   }
 
-  Future<void> setPin(String pinHash) async {
-    final updated = state.copyWith(
-      pinHash: pinHash,
-      isPinSecurityEnabled: pinHash.isNotEmpty,
-    );
-    await updateSettings(updated);
-  }
-
-  Future<void> setBiometricAuth(bool enabled) async {
-    final updated = state.copyWith(isBiometricEnabled: enabled);
+  Future<void> reorderDashboardSections(
+    List<DashboardSectionConfig> sections,
+  ) async {
+    final updated = state.copyWith(dashboardSections: sections);
     await updateSettings(updated);
   }
 }
 
-final settingsProvider = NotifierProvider<SettingsNotifier, AppSettings>(
-  SettingsNotifier.new,
-);
+final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>((
+  ref,
+) {
+  return SettingsNotifier();
+});
 
-class TradesNotifier extends Notifier<List<TradeRecord>> {
-  @override
-  List<TradeRecord> build() => const [];
+// --- Security Lock State (false = locked/pending auth, true = session unlocked) ---
+class SecurityLockNotifier extends StateNotifier<bool> {
+  SecurityLockNotifier() : super(false);
+
+  void setUnlocked(bool unlocked) {
+    state = unlocked;
+  }
+
+  void lock() {
+    state = false;
+  }
+}
+
+final appUnlockedProvider = StateNotifierProvider<SecurityLockNotifier, bool>((
+  ref,
+) {
+  return SecurityLockNotifier();
+});
+
+final securityLockProvider = appUnlockedProvider;
+
+// --- Trades State & Notifier ---
+class TradesNotifier extends StateNotifier<List<TradeRecord>> {
+  TradesNotifier() : super([]);
 
   Future<void> load() async {
     state = await StorageService.loadTrades();
   }
 
   Future<void> addTrade(TradeRecord trade) async {
-    final updated = [trade, ...state];
-    state = updated;
-    await StorageService.saveTrades(updated);
+    state = [trade, ...state];
+    await StorageService.saveTrades(state);
   }
 
-  Future<void> updateTrade(TradeRecord trade) async {
-    final updated = state
-        .map((item) => item.id == trade.id ? trade : item)
-        .toList();
-    state = updated;
-    await StorageService.saveTrades(updated);
+  Future<void> updateTrade(TradeRecord updated) async {
+    state = [
+      for (final t in state)
+        if (t.id == updated.id) updated else t,
+    ];
+    await StorageService.saveTrades(state);
   }
 
   Future<void> deleteTrade(String id) async {
-    final updated = state.where((item) => item.id != id).toList();
-    state = updated;
-    await StorageService.saveTrades(updated);
+    state = state.where((t) => t.id != id).toList();
+    await StorageService.saveTrades(state);
+  }
+
+  Future<void> markTradeSold(String id) async {
+    state = [
+      for (final t in state)
+        if (t.id == id) t.copyWith(status: 'SOLD') else t,
+    ];
+    await StorageService.saveTrades(state);
   }
 }
 
-final tradesProvider = NotifierProvider<TradesNotifier, List<TradeRecord>>(
-  TradesNotifier.new,
+final tradesProvider = StateNotifierProvider<TradesNotifier, List<TradeRecord>>(
+  (ref) {
+    return TradesNotifier();
+  },
 );
 
-class WatchlistNotifier extends Notifier<List<String>> {
-  @override
-  List<String> build() => const [];
+// --- Calendar Reminders Notifier ---
+class RemindersNotifier extends StateNotifier<List<CalendarReminder>> {
+  RemindersNotifier() : super([]);
+
+  Future<void> load() async {
+    state = await StorageService.loadReminders();
+  }
+
+  Future<void> addReminder(CalendarReminder reminder) async {
+    state = [reminder, ...state];
+    await StorageService.saveReminders(state);
+  }
+
+  Future<void> toggleReminderCompleted(String id) async {
+    state = [
+      for (final r in state)
+        if (r.id == id) r.copyWith(isCompleted: !r.isCompleted) else r,
+    ];
+    await StorageService.saveReminders(state);
+  }
+
+  Future<void> deleteReminder(String id) async {
+    state = state.where((r) => r.id != id).toList();
+    await StorageService.saveReminders(state);
+  }
+}
+
+final remindersProvider =
+    StateNotifierProvider<RemindersNotifier, List<CalendarReminder>>((ref) {
+      return RemindersNotifier();
+    });
+
+// --- Watchlist Notifier ---
+class WatchlistNotifier extends StateNotifier<List<String>> {
+  WatchlistNotifier() : super([]);
 
   Future<void> load() async {
     state = await StorageService.loadWatchlist();
   }
 
   Future<void> toggleSymbol(String symbol) async {
-    final updated = state.contains(symbol)
-        ? state.where((item) => item != symbol).toList()
-        : [...state, symbol];
-    state = updated;
-    await StorageService.saveWatchlist(updated);
+    if (state.contains(symbol)) {
+      state = state.where((s) => s != symbol).toList();
+    } else {
+      state = [...state, symbol];
+    }
+    await StorageService.saveWatchlist(state);
   }
 }
 
-final watchlistProvider = NotifierProvider<WatchlistNotifier, List<String>>(
-  WatchlistNotifier.new,
-);
+final watchlistProvider =
+    StateNotifierProvider<WatchlistNotifier, List<String>>((ref) {
+      return WatchlistNotifier();
+    });
 
-class SecurityLockNotifier extends Notifier<bool> {
-  @override
-  bool build() => true;
-
-  void setLocked(bool locked) {
-    state = locked;
-  }
-}
-
-final securityLockProvider = NotifierProvider<SecurityLockNotifier, bool>(
-  SecurityLockNotifier.new,
-);
-
-final appStartupProvider = FutureProvider<bool>((ref) async {
+final appStartupProvider = FutureProvider<void>((ref) async {
   await ref.read(settingsProvider.notifier).load();
-  await ref.read(tradesProvider.notifier).load();
-  await ref.read(watchlistProvider.notifier).load();
-  return true;
+  await Future.wait([
+    ref.read(tradesProvider.notifier).load(),
+    ref.read(remindersProvider.notifier).load(),
+    ref.read(watchlistProvider.notifier).load(),
+  ]);
+  ref
+      .read(themeIndexProvider.notifier)
+      .initialize(ref.read(settingsProvider).themeIndex);
 });
 
-final portfolioSummaryProvider = Provider<Map<String, dynamic>>((ref) {
+// --- Portfolio Summary Computed Provider ---
+class PortfolioSummary {
+  final double totalInvested;
+  final double currentValue;
+  final double totalPnL;
+  final double pnlPercentage;
+  final int totalHoldingCount;
+  final int targetReachedCount;
+  final Map<String, double> sectorBreakdown; // Sector -> value
+  final double dailyEstimatedChange;
+
+  const PortfolioSummary({
+    required this.totalInvested,
+    required this.currentValue,
+    required this.totalPnL,
+    required this.pnlPercentage,
+    required this.totalHoldingCount,
+    required this.targetReachedCount,
+    required this.sectorBreakdown,
+    required this.dailyEstimatedChange,
+  });
+}
+
+final portfolioSummaryProvider = Provider<PortfolioSummary>((ref) {
   final trades = ref.watch(tradesProvider);
+  final activeTrades = trades.where((t) => t.status != 'SOLD').toList();
 
   double invested = 0;
-  double currentValue = 0;
+  double current = 0;
+  int targetReached = 0;
+  final Map<String, double> sectorMap = {};
+  double dailyChange = 0;
 
-  for (final trade in trades) {
-    invested += trade.totalInvestment;
-    currentValue += trade.currentValue;
+  for (final t in activeTrades) {
+    invested += t.effectiveCost;
+    current += t.currentValue;
+    if (t.daysRemainingToTarget <= 0 || t.status == 'TARGET_REACHED') {
+      targetReached++;
+    }
+
+    sectorMap[t.sector] = (sectorMap[t.sector] ?? 0.0) + t.currentValue;
+
+    // Approximate daily change from company profile
+    final company = CompanyRepository.findBySymbol(t.symbol);
+    if (company != null) {
+      dailyChange += (company.priceChange * t.quantity);
+    }
   }
 
-  final pnl = currentValue - invested;
-  final percentage = invested == 0 ? 0.0 : (pnl / invested) * 100;
+  final pnl = current - invested;
+  final pnlPct = invested > 0 ? (pnl / invested) * 100 : 0.0;
 
-  return {
-    'invested': invested,
-    'currentValue': currentValue,
-    'pnl': pnl,
-    'pnlPercentage': percentage,
-    'count': trades.length,
-  };
+  return PortfolioSummary(
+    totalInvested: invested,
+    currentValue: current,
+    totalPnL: pnl,
+    pnlPercentage: pnlPct,
+    totalHoldingCount: activeTrades.length,
+    targetReachedCount: targetReached,
+    sectorBreakdown: sectorMap,
+    dailyEstimatedChange: dailyChange,
+  );
 });
+
+// --- Technical Indicator Analysis Provider Family ---
+final technicalIndicatorProvider =
+    Provider.family<TechnicalIndicatorData, String>((ref, symbol) {
+      final company = CompanyRepository.findBySymbol(symbol);
+      if (company == null) {
+        return TechnicalIndicatorData(
+          symbol: symbol,
+          prices: const [],
+          volumes: const [],
+          currentPrice: 0,
+          macdLine: 0,
+          signalLine: 0,
+          histogram: 0,
+          rsi: 50,
+          sma20: 0,
+          sma50: 0,
+          sma200: 0,
+          upperBollinger: 0,
+          middleBollinger: 0,
+          lowerBollinger: 0,
+          volumeTrendRatio: 1.0,
+          sentimentScore: 50,
+          trendSignal: 'NEUTRAL',
+        );
+      }
+
+      // Generate simulated volume series
+      final volumes = List.generate(
+        company.recentPrices.length,
+        (i) => (company.volume / 20) + (i * 1200),
+      );
+
+      return IndicatorCalculatorService.analyzeSymbol(
+        symbol: symbol,
+        prices: company.recentPrices,
+        volumes: volumes,
+      );
+    });

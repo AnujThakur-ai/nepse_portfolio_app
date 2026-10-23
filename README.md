@@ -1,17 +1,19 @@
-# nepse_portfolio_app
+# NEPSE Portfolio Analyzer
 
-A new Flutter project.
+Standalone Flutter application for tracking NEPSE trades, portfolio performance, watchlists, reminders, and technical indicators. User data is stored locally on device.
 
-## Getting Started
+## Run
 
-This project is a starting point for a Flutter application.
+```sh
+flutter pub get
+flutter run
+```
 
-A few resources to get you started if this is your first Flutter project:
+## Validate
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```sh
+flutter analyze
+flutter test
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+PIN and biometric access are optional. PINs are stored as salted SHA-256 hashes; biometric unlock is offered only when enabled and supported by the device.
