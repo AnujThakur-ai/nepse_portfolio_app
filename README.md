@@ -16,4 +16,4 @@ flutter analyze
 flutter test
 ```
 
-PIN and biometric access are optional. PINs are stored as salted SHA-256 hashes; biometric unlock is offered only when enabled and supported by the device.
+PIN and biometric access are optional. New PINs use salted PBKDF2-HMAC-SHA256 hashes; PINs saved by older versions remain verifiable. When PIN or biometric security is enabled, the app locks again when it leaves the foreground. Android blocks screenshots and screen recordings, and iOS covers the app-switcher snapshot. iOS does not provide an app API to block user-initiated screenshots.

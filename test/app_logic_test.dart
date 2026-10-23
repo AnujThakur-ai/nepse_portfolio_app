@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -17,10 +20,27 @@ void main() {
 
   test('PIN verification rejects empty and incorrect values', () {
     final hash = SecurityService.hashPin('1234');
+    final anotherHash = SecurityService.hashPin('1234');
+    expect(hash, isNot(anotherHash));
     expect(SecurityService.verifyPin('1234', hash), isTrue);
     expect(SecurityService.verifyPin('0000', hash), isFalse);
     expect(SecurityService.verifyPin('', hash), isFalse);
     expect(SecurityService.verifyPin('1234', ''), isFalse);
+  });
+
+  test(
+    'PIN verification continues to accept hashes from the previous version',
+    () {
+      final legacyHash = sha256
+          .convert(utf8.encode('1234nepse_analyzer_salt_#2083!'))
+          .toString();
+      expect(SecurityService.verifyPin('1234', legacyHash), isTrue);
+    },
+  );
+
+  test('PIN hashing rejects non-numeric or unsupported PIN lengths', () {
+    expect(() => SecurityService.hashPin('12a4'), throwsFormatException);
+    expect(() => SecurityService.hashPin('12345'), throwsFormatException);
   });
 
   test('settings load tolerates invalid enum values', () {

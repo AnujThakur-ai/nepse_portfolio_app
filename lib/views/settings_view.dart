@@ -19,6 +19,12 @@ class SettingsView extends ConsumerStatefulWidget {
 class _SettingsViewState extends ConsumerState<SettingsView> {
   final _pinController = TextEditingController();
 
+  @override
+  void dispose() {
+    _pinController.dispose();
+    super.dispose();
+  }
+
   Future<void> _toggleBiometrics(bool enabled) async {
     if (enabled && !await SecurityService.canCheckBiometrics()) {
       if (mounted) {
@@ -55,6 +61,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
                 keyboardType: TextInputType.number,
                 maxLength: 4,
                 obscureText: true,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(
                   labelText: '4-Digit PIN',
                   hintText: '••••',
@@ -71,22 +78,27 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 final pin = _pinController.text.trim();
-                if (pin.length == 4) {
-                  final hash = SecurityService.hashPin(pin);
-                  ref.read(settingsProvider.notifier).setPin(hash);
-                  ref.read(appUnlockedProvider.notifier).setUnlocked(true);
-                  _pinController.clear();
-                  Navigator.pop(context);
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Security PIN successfully set!'),
-                      backgroundColor: Color(0xFF10B981),
-                    ),
+                if (!RegExp(r'^\d{4}$').hasMatch(pin)) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(content: Text('Enter exactly 4 digits.')),
                   );
+                  return;
                 }
+                final hash = SecurityService.hashPin(pin);
+                await ref.read(settingsProvider.notifier).setPin(hash);
+                if (!mounted || !context.mounted) return;
+                ref.read(appUnlockedProvider.notifier).setUnlocked(true);
+                _pinController.clear();
+                Navigator.pop(context);
+
+                ScaffoldMessenger.of(this.context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Security PIN successfully set!'),
+                    backgroundColor: Color(0xFF10B981),
+                  ),
+                );
               },
               child: const Text('Set PIN'),
             ),
