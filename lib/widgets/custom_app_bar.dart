@@ -14,7 +14,7 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => const Size.fromHeight(64);
+  Size get preferredSize => const Size.fromHeight(68);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -24,72 +24,85 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
     final isMarketOpen = BikramSambatService.isNepseOpen(now);
 
     return AppBar(
-      titleSpacing: 16,
+      toolbarHeight: 68,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      backgroundColor: theme.scaffoldBackgroundColor,
+      surfaceTintColor: Colors.transparent,
+      titleSpacing: 18,
       title: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Text(
-                'NEPSE ANALYZER',
+                'NEPSE',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 17,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.4,
                   color: theme.colorScheme.primary,
                 ),
               ),
-              const SizedBox(width: 8),
-              // Live Market Indicator Pill
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              const SizedBox(width: 7),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isMarketOpen
-                      ? const Color(0xFF10B981).withAlpha(38)
-                      : theme.colorScheme.error.withAlpha(38),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: isMarketOpen
-                        ? const Color(0xFF10B981)
-                        : theme.colorScheme.error,
-                    width: 1,
-                  ),
+                      ? const Color(0xFF10B981).withAlpha(24)
+                      : theme.colorScheme.error.withAlpha(24),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isMarketOpen
-                            ? const Color(0xFF10B981)
-                            : theme.colorScheme.error,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  switchInCurve: Curves.easeOutBack,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: (child, animation) => FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(scale: animation, child: child),
+                  ),
+                  child: Row(
+                    key: ValueKey(isMarketOpen),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isMarketOpen
+                              ? const Color(0xFF10B981)
+                              : theme.colorScheme.error,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isMarketOpen ? 'LIVE' : 'CLOSED',
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: isMarketOpen
-                            ? const Color(0xFF10B981)
-                            : theme.colorScheme.error,
+                      const SizedBox(width: 5),
+                      Text(
+                        isMarketOpen ? 'OPEN' : 'CLOSED',
+                        style: TextStyle(
+                          fontSize: 9,
+                          letterSpacing: 0.25,
+                          fontWeight: FontWeight.w800,
+                          color: isMarketOpen
+                              ? const Color(0xFF10B981)
+                              : theme.colorScheme.error,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 3),
           Text(
             '${nepDate.formatBs()} • ${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} AD',
             style: TextStyle(
-              fontSize: 11,
-              color: theme.colorScheme.onSurface.withAlpha(166),
+              fontSize: 10,
+              color: theme.colorScheme.onSurface.withAlpha(145),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -97,16 +110,33 @@ class CustomAppBar extends ConsumerWidget implements PreferredSizeWidget {
       ),
       actions: [
         IconButton(
-          icon: const Icon(Icons.search, size: 22),
+          style: IconButton.styleFrom(
+            backgroundColor: theme.colorScheme.primary.withAlpha(18),
+            foregroundColor: theme.colorScheme.primary,
+            fixedSize: const Size(40, 40),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          icon: const Icon(Icons.search_rounded, size: 20),
           tooltip: 'Search NEPSE Tickers',
           onPressed: onSearchTap,
         ),
         IconButton(
-          icon: const Icon(Icons.settings_outlined, size: 22),
+          style: IconButton.styleFrom(
+            backgroundColor: theme.colorScheme.surfaceContainerHighest
+                .withAlpha(120),
+            foregroundColor: theme.colorScheme.onSurface,
+            fixedSize: const Size(40, 40),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          icon: const Icon(Icons.tune_rounded, size: 20),
           tooltip: 'Settings, 10 Themes & Backups',
           onPressed: onThemeTap,
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 12),
       ],
     );
   }

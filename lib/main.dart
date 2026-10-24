@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +6,21 @@ import 'providers/app_providers.dart';
 import 'views/dashboard_view.dart';
 import 'views/onboarding_view.dart';
 import 'views/security_lock_view.dart';
+
+class AiryScrollBehavior extends MaterialScrollBehavior {
+  const AiryScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+
+  @override
+  Widget buildOverscrollIndicator(
+    BuildContext context,
+    Widget child,
+    ScrollableDetails details,
+  ) => child;
+}
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -51,7 +67,18 @@ class NepseApp extends ConsumerWidget {
     return MaterialApp(
       title: 'NEPSE ML Trading & Portfolio Analyzer',
       debugShowCheckedModeBanner: false,
-      theme: currentTheme.themeData,
+      scrollBehavior: const AiryScrollBehavior(),
+      theme: currentTheme.themeData.copyWith(
+        pageTransitionsTheme: const PageTransitionsTheme(
+          builders: {
+            TargetPlatform.android: ZoomPageTransitionsBuilder(),
+            TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
+            TargetPlatform.linux: ZoomPageTransitionsBuilder(),
+            TargetPlatform.windows: ZoomPageTransitionsBuilder(),
+          },
+        ),
+      ),
       home: SecurityLockView(
         child: settings.hasCompletedOnboarding
             ? const DashboardView()

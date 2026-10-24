@@ -131,7 +131,7 @@ class _DocumentVaultViewState extends ConsumerState<DocumentVaultView> {
               child: EmptyStateCard(
                 icon: Icons.receipt_long_outlined,
                 title: 'Document Vault is Empty',
-                message: 'Keep contract notes, TMS buy bills, and chart analysis screenshots organized offline in your encrypted vault.',
+                message: 'Keep contract notes, TMS buy bills, and chart analysis screenshots organized on this device. Vault files are not encrypted by the app.',
                 buttonLabel: 'Upload First Document',
                 onButtonPressed: _uploadNewDocument,
               ),

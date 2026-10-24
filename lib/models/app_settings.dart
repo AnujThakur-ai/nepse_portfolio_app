@@ -61,6 +61,11 @@ class AppSettings {
   final bool notifyMacdSignals;
   final bool notifySellDateReminders;
   final bool notifyPnlMilestones;
+  final String displayName;
+  final String emailAddress;
+  final String phoneNumber;
+  final String location;
+  final String profileBio;
   final String
   investorType; // 'INDIVIDUAL_SHORT', 'INDIVIDUAL_LONG', 'INSTITUTIONAL'
   final List<String> activeShortcuts;
@@ -77,6 +82,11 @@ class AppSettings {
     this.notifyMacdSignals = true,
     this.notifySellDateReminders = true,
     this.notifyPnlMilestones = true,
+    this.displayName = '',
+    this.emailAddress = '',
+    this.phoneNumber = '',
+    this.location = '',
+    this.profileBio = '',
     this.investorType = 'INDIVIDUAL_SHORT',
     this.activeShortcuts = const [
       'quick_buy',
@@ -135,6 +145,11 @@ class AppSettings {
     bool? notifyMacdSignals,
     bool? notifySellDateReminders,
     bool? notifyPnlMilestones,
+    String? displayName,
+    String? emailAddress,
+    String? phoneNumber,
+    String? location,
+    String? profileBio,
     String? investorType,
     List<String>? activeShortcuts,
     List<DashboardSectionConfig>? dashboardSections,
@@ -152,6 +167,11 @@ class AppSettings {
       notifySellDateReminders:
           notifySellDateReminders ?? this.notifySellDateReminders,
       notifyPnlMilestones: notifyPnlMilestones ?? this.notifyPnlMilestones,
+      displayName: displayName ?? this.displayName,
+      emailAddress: emailAddress ?? this.emailAddress,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      location: location ?? this.location,
+      profileBio: profileBio ?? this.profileBio,
       investorType: investorType ?? this.investorType,
       activeShortcuts: activeShortcuts ?? this.activeShortcuts,
       dashboardSections: dashboardSections ?? this.dashboardSections,
@@ -170,6 +190,11 @@ class AppSettings {
       'notifyMacdSignals': notifyMacdSignals,
       'notifySellDateReminders': notifySellDateReminders,
       'notifyPnlMilestones': notifyPnlMilestones,
+      'displayName': displayName,
+      'emailAddress': emailAddress,
+      'phoneNumber': phoneNumber,
+      'location': location,
+      'profileBio': profileBio,
       'investorType': investorType,
       'activeShortcuts': activeShortcuts,
       'dashboardSections': dashboardSections.map((s) => s.toJson()).toList(),
@@ -198,6 +223,11 @@ class AppSettings {
       notifyMacdSignals: json['notifyMacdSignals'] as bool? ?? true,
       notifySellDateReminders: json['notifySellDateReminders'] as bool? ?? true,
       notifyPnlMilestones: json['notifyPnlMilestones'] as bool? ?? true,
+      displayName: json['displayName'] as String? ?? '',
+      emailAddress: json['emailAddress'] as String? ?? '',
+      phoneNumber: json['phoneNumber'] as String? ?? '',
+      location: json['location'] as String? ?? '',
+      profileBio: json['profileBio'] as String? ?? '',
       investorType: json['investorType'] as String? ?? 'INDIVIDUAL_SHORT',
       activeShortcuts:
           (json['activeShortcuts'] as List<dynamic>?)

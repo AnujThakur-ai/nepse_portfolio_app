@@ -198,7 +198,10 @@ class _DualCalendarViewState extends ConsumerState<DualCalendarView> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final reminders = ref.watch(remindersProvider);
+    final reminders = ref
+        .watch(remindersProvider)
+        .where((reminder) => reminder.type != 'IDEA')
+        .toList();
     final daysInCurrentMonth = BikramSambatService.getDaysInBsMonth(
       _currentBsYear,
       _currentBsMonth,

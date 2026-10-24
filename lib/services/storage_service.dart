@@ -191,7 +191,7 @@ class StorageService {
     return buffer.toString();
   }
 
-  /// Encrypted JSON full database backup export
+  /// Portable JSON backup export. Base64 is encoding, not encryption.
   static Future<String> exportFullJsonBackup() async {
     final trades = await loadTrades();
     final reminders = await loadReminders();

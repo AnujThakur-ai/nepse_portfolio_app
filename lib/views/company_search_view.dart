@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/company_profile.dart';
 import '../providers/app_providers.dart';
 import '../services/company_repository.dart';
+import '../services/company_search_service.dart';
+import '../widgets/glass_panel.dart';
 import 'technical_analysis_view.dart';
 import 'trade_logger_view.dart';
 
@@ -18,6 +20,7 @@ class _CompanySearchViewState extends ConsumerState<CompanySearchView> {
   final _searchController = TextEditingController();
   String _selectedSector = 'ALL';
   List<CompanyProfile> _filteredList = CompanyRepository.initialCompanies;
+  String? _intentLabel;
 
   @override
   void initState() {
@@ -27,12 +30,17 @@ class _CompanySearchViewState extends ConsumerState<CompanySearchView> {
 
   void _filterCompanies() {
     final query = _searchController.text.trim();
-    var list = CompanyRepository.searchCompanies(query);
+    final result = CompanySearchService.search(
+      query,
+      watchlist: ref.read(watchlistProvider).toSet(),
+    );
+    var list = result.companies;
     if (_selectedSector != 'ALL') {
       list = list.where((c) => c.sector == _selectedSector).toList();
     }
     setState(() {
       _filteredList = list;
+      _intentLabel = result.intentLabel;
     });
   }
 
@@ -56,7 +64,7 @@ class _CompanySearchViewState extends ConsumerState<CompanySearchView> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'Search by symbol, company or sector...',
+                hintText: 'Try “bullish banks” or “hydro watchlist”',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
@@ -71,6 +79,19 @@ class _CompanySearchViewState extends ConsumerState<CompanySearchView> {
               onChanged: (_) => _filterCompanies(),
             ),
           ),
+
+          if (_intentLabel != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Chip(
+                  avatar: const Icon(Icons.auto_awesome, size: 15),
+                  label: Text('Search intent: $_intentLabel'),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ),
 
           // Sector Filter Chips
           SingleChildScrollView(
@@ -114,7 +135,8 @@ class _CompanySearchViewState extends ConsumerState<CompanySearchView> {
                           ? const Color(0xFF10B981)
                           : const Color(0xFFEF4444);
 
-                      return Card(
+                      return GlassPanel(
+                        padding: EdgeInsets.zero,
                         child: InkWell(
                           borderRadius: BorderRadius.circular(16),
                           onTap: () => _showCompanyDetailModal(company, theme),
@@ -280,6 +302,29 @@ class _CompanySearchViewState extends ConsumerState<CompanySearchView> {
                 ],
               ),
               const Divider(height: 20),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withAlpha(20),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    'OFFLINE COMPANY DIRECTORY • NEPAL / NEPSE',
+                    style: TextStyle(
+                      fontSize: 9,
+                      letterSpacing: 0.5,
+                      fontWeight: FontWeight.bold,
+                      color: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 9),
               Text(
                 c.description,
                 style: TextStyle(
